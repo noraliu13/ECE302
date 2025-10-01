@@ -722,6 +722,133 @@ close(fds[1]);
 - Recursive pipe forks (`while true; fork`) → can crash the system.
 - Multiple processes reading/writing → race conditions possible.
 - `printf()` may fail if `stdout` is closed.
+- 
+
+# Operating Systems Lecture 8 Notes
+
+## Lecture Overview
+- Topic: Completing Lab 2 – sending and receiving data from a process.
+- Goals:
+  1. Create a new process that launches a command-line argument.
+  2. Send the string `"testing\n"` to that process.
+  3. Receive and read any data printed to its standard output.
+
+---
+
+## APIs Covered
+### `execve` / `execvp`
+- `execve`: Starts running another program, replacing the current process.
+- `execvp`: Convenient wrapper over `execve`.
+  - Finds program in `PATH`, no need for full path.
+  - Pass C strings directly; terminate with `NULL`.
+  - If successful, does **not return**; on failure, returns `-1` and sets `errno`.
+
+### `dup` / `dup2`
+- `dup(oldfd)` → returns new FD pointing to the same resource.
+- `dup2(oldfd, newfd)` → makes `newfd` point to same resource as `oldfd`.
+  - Closes `newfd` first if already in use.
+  - Useful to manipulate standard file descriptors (`stdin`, `stdout`, `stderr`) before `exec`.
+
+---
+
+## File Descriptors
+- Standard FDs:
+  - `0` → stdin
+  - `1` → stdout
+  - `2` → stderr
+- Closing `stdout` disables `printf()` output.
+- Pipes are **one-way communication channels**; need one pipe per direction.
+
+---
+
+## Pipe Setup & Forking
+1. **Create pipe before fork** to share between parent and child.
+2. **Fork**:
+   - Parent: `fork()` returns child PID.
+   - Child: `fork()` returns `0`.
+3. Each process initially has the same FDs open (0, 1, 2, plus pipe FDs).
+
+### Reading from a Pipe
+- `read()` is **blocking**: waits until all write ends are closed and data is consumed.
+- Must close unused pipe ends to prevent blocking.
+
+### Sending Data via Pipe
+- Write data to the pipe using `write(pipe_fd, buffer, size)`.
+- Read from the pipe with `read(pipe_fd, buffer, size)`.
+
+---
+
+## Example: Capturing `uname` Output
+- Parent creates a pipe (`out_pipe`) and forks.
+- Child:
+  - Redirects `stdout` to the write end of `out_pipe` via `dup2`.
+  - Closes unused pipe FDs.
+  - Executes `uname` via `execvp`.
+- Parent:
+  - Reads from the read end of `out_pipe`.
+  - Prints output (e.g., `"Linux"`).
+
+**Important**: Always close unused FDs to avoid blocking or resource leaks.
+
+---
+
+## Bidirectional Communication
+- Use two pipes:
+  1. `out_pipe`: child writes, parent reads.
+  2. `in_pipe`: parent writes, child reads.
+- Redirect FDs using `dup2`:
+  - Child `stdout` → `out_pipe` write end.
+  - Child `stdin` → `in_pipe` read end.
+- Parent writes data to `in_pipe` and reads from `out_pipe`.
+
+---
+
+## Example: Sending `"testing\n"` to a child running `cat`
+1. Parent writes `"testing\n"` to `in_pipe`.
+2. Child reads from `stdin` (redirected to `in_pipe`) and writes to `stdout` (redirected to `out_pipe`).
+3. Parent reads from `out_pipe` and sees `"testing\n"`.
+
+---
+
+## Best Practices
+- **Close file descriptors** as soon as you are done using them:
+  - Parent: close read end of `in_pipe` after writing.
+  - Parent: close write end of `out_pipe` if not used.
+  - Child: close unused ends of pipes before `exec`.
+- **Wait for child process** using `wait(pid, &status, 0)` to prevent zombies/orphans.
+- Use `assert` to check child exit status:
+  ```c
+  int wstatus;
+  wait(pid, &wstatus, 0);
+  assert(WIFEXITED(wstatus));
+  assert(WEXITSTATUS(wstatus) == 0);
+  ```
+
+## Common Pitfalls
+- Not closing the **write end** in the parent or **read end** in the child → can cause reads/writes to block.  
+- Leaving pipes open → child may hang waiting for EOF (e.g., with `cat`).  
+- Overwriting `stderr` unnecessarily → keep it available for error messages.  
+
+## Lab 2 Steps Summary
+1. Create two pipes: `in_pipe` and `out_pipe`.  
+2. Fork a new process.  
+3. **Child process**:  
+   - Redirect `stdin` and `stdout` using `dup2`.  
+   - Close any unused pipe file descriptors.  
+   - Execute the target program with `execvp`.  
+4. **Parent process**:  
+   - Write data to `in_pipe`.  
+   - Read output from `out_pipe`.  
+   - Close any used file descriptors.  
+   - Wait for the child to finish.  
+
+## Key Takeaways
+- Proper management of file descriptors is essential for inter-process communication.  
+- Pipes provide a straightforward way for data transfer between parent and child.  
+- `dup2` enables redirection of standard I/O to pipes.  
+- Always wait for child termination to avoid creating zombies or orphaned processes.  
+
+
 
 
 

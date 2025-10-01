@@ -476,3 +476,162 @@ if (pid == 0) {
 - **Zombies**: terminated but **unacknowledged by parent**.  
 - **Orphans**: parent died, **reparented to PID 1**.  
 - Always use `wait()` to **properly clean up child processes**.
+
+# Lecture 6 – Basic IPC and Signals
+
+## Introduction to IPC
+- IPC (Interprocess Communication) is necessary because processes are independent.
+- Even printing "Hello World" involves IPC (process writes to the terminal).
+- IPC is just transferring bytes between processes.
+- Reading and writing files is a form of IPC:
+  - One process writes to a file.
+  - Another process reads from the file.
+- Processes on different machines can communicate via IPC (e.g., internet).
+
+## Basic Read/Write Example
+
+```c
+#define BUFFER_SIZE 4096
+
+char buffer[BUFFER_SIZE];
+int bytes_read;
+
+while ((bytes_read = read(0, buffer, sizeof(buffer))) > 0) {
+    int bytes_written = write(1, buffer, bytes_read);
+    assert(bytes_read == bytes_written);
+}
+
+if (bytes_read == -1) {
+    perror("read error");
+}
+```
+
+## Reading and Writing
+
+- Reads from **standard input** (`fd = 0`) and writes to **standard output** (`fd = 1`).
+- `read()` is **blocking**: waits until input is available.
+- End of file is signaled by `read()` returning `0`.
+- Errors are indicated by `read()` returning `-1`.
+
+
+
+## Standard File Descriptors
+
+- `0` → standard input (stdin)  
+- `1` → standard output (stdout)  
+- `2` → standard error (stderr)  
+
+### Notes:
+
+- File descriptors can be closed and reassigned:  
+  Closing `fd 0` and opening a file assigns it to `fd 0`.
+- Shell can redirect standard file descriptors before running a program:  
+  ```bash
+  ./program < file.txt
+  ```
+## Pipes
+
+- Pipes connect the **stdout** of one process to the **stdin** of another.  
+- Example:
+  ```bash
+  echo "Hello" | ./read_write_example
+  ```
+## Signals
+
+- Signals are a form of **IPC** that interrupts a process.
+- Default signal handlers:
+  - Ignore the signal
+  - Terminate the process
+- Example: Pressing **Ctrl+C** sends `SIGINT` (default: terminate)
+
+### Common Signals
+
+| Signal   | Number | Description                     |
+|-|--||
+| SIGINT   | 2      | Keyboard interrupt              |
+| SIGKILL  | 9      | Force terminate                 |
+| SIGTERM  | 15     | Polite terminate                |
+| SIGSEGV  | 11     | Memory access violation         |
+
+
+
+## Handling Signals
+
+- Register custom signal handlers with `sigaction`.
+
+```c
+void handle_signal(int signal_num) {
+    printf("Received signal %d\n", signal_num);
+}
+
+struct sigaction sa;
+sa.sa_handler = handle_signal;
+sigaction(SIGINT, &sa, NULL);
+sigaction(SIGTERM, &sa, NULL);
+```
+
+- Interrupted system calls return `-1` and set `errno` to `EINTR`.
+- Can handle by **retrying the system call**.
+
+
+
+## Killing Processes
+
+- `kill <pid>` → sends `SIGTERM` by default  
+- `kill -9 <pid>` → sends `SIGKILL` (cannot be ignored)  
+- Only the process owner or root can kill processes.  
+- Root can kill any process, but **PID 1 (systemd)** is protected.
+
+
+
+## Non-blocking Wait
+
+- `waitpid(pid, &status, WNOHANG)` → returns immediately if child has not exited.
+
+### Example
+
+```c
+while (waitpid(-1, &status, WNOHANG) == 0) {
+    sleep(1); // reduce wasted CPU cycles
+}
+```
+
+## Tradeoff
+
+- **Longer sleep** → slower reaction  
+- **Shorter sleep** → higher CPU usage
+
+
+
+## Signal Handling with Children
+
+- The kernel sends `SIGCHLD` when a child process terminates.  
+- Parent can register a handler:
+
+```c
+void sigchld_handler(int signal_num) {
+    int status;
+    wait(&status);
+}
+```
+
+- Ensures child processes don’t become **zombies**.
+- Signal handlers can be nested; careful **resource management** is needed (e.g., closing files).
+
+## Summary
+
+- IPC enables communication between independent processes.
+- Standard file descriptors provide easy read/write access.
+- Pipes allow chaining processes.
+- Signals allow asynchronous notifications.
+- Signal handlers can handle or ignore signals.
+- Non-blocking waits and signal-driven waits provide flexibility in process management.
+- Proper cleanup is essential to avoid **zombies** and **resource leaks**.
+
+
+
+
+
+
+
+

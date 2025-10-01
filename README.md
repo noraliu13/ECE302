@@ -83,7 +83,7 @@ Memory     │ ├─────────┤  ├─────────
           └─┴─────────┴──┴───────────┴──┘
 
 ```
----
+ 
 Lecture 2
 
 # Lecture 2 – Kernels, System Calls, and Hello World Internals
@@ -176,4 +176,91 @@ X1 = arg1
 ...
 SVC → trap into kernel
 ```
+
+
+# Lecture 3 – System Calls, Kernels, and Libraries
+
+## 🔧 System Calls Recap
+- A **system call** is a function that runs in **kernel mode** instead of **user mode**.  
+- They allow a program to request services from the kernel (e.g., access hardware).  
+- Execution flow:  
+
+## 🔧 System Call Flow
+A system call transitions a program from **user mode** into **kernel mode** to request OS services.  
+
+### Execution Flow
+```text
+Program (User Mode)
+   ↓
+System Call
+   ↓
+Switch to Kernel Mode
+   ↓
+Perform Operation
+   ↓
+Return to User Mode
+```
+
+## 🖥️ What Makes an Operating System?
+
+- **Kernel**: The core of the OS that manages processes, memory, devices, and hardware access.  
+- **Libraries**: Provide reusable functions and programming interfaces.  
+- **Utilities**: User-facing tools and programs.  
+
+### Formula
+```text
+Kernel + Libraries + Utilities = Operating System
+```
+
+### 🌍 Examples of Operating Systems
+- **Apple platforms** (iOS, macOS, iPadOS, etc.) share the **same kernel**, but differ in libraries and user applications.  
+- **Android vs Debian**: both rely on the **Linux kernel**, but feel very different because they use different libraries and utilities.  
+- When people say *Linux*, they usually mean **GNU/Linux**:  
+  - **Linux** → the kernel  
+  - **GNU** → the C standard library + essential utilities  
+
+ 
+
+## ⚙️ Compilation and Linking
+- Each `.c` source file is compiled into an **object file** (`.o`) containing machine code.  
+- The **linker** combines multiple `.o` files into a single executable.  
+
+### Example
+```text
+main.c → main.o
+util.c → util.o
+foo.c  → foo.o
+bar.c  → bar.o
+     -
+Linker → final executable
+```
+
+## 📚 Libraries
+
+A **library** is a collection of precompiled object files that can be shared and reused across multiple programs.  
+They help avoid rewriting common functionality and make programs more modular.  
+
+ 
+
+### 🔒 Static Libraries (`.a`)
+- Library code is **copied directly** into the executable during linking.  
+- Produces a **self-contained** binary (no external dependencies at runtime).  
+
+**Drawbacks**:  
+- Larger executable size  
+- Updating the library requires **relinking** every program  
+
+ 
+
+### 🔗 Dynamic Libraries
+- Linux: `.so`  
+- macOS: `.dylib`  
+- Windows: `.dll`  
+- Code is **not embedded** into the executable. Instead, the program stores a **reference** to the library.  
+- At runtime, the **dynamic linker** loads the required library.  
+
+**Advantages**:  
+- Smaller executables  
+- Easy to update shared libraries without recompilation  
+
 

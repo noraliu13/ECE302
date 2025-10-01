@@ -627,7 +627,101 @@ void sigchld_handler(int signal_num) {
 - Signal handlers can handle or ignore signals.
 - Non-blocking waits and signal-driven waits provide flexibility in process management.
 - Proper cleanup is essential to avoid **zombies** and **resource leaks**.
+- 
 
+# Lecture 7: Operating Systems - Processes and Pipes
+
+## 1. Overview
+- Today’s focus: process creation, zombies/orphans, signals, and interprocess communication (IPC) via pipes.
+- Relevant for **Lab 2**: common mistakes can cause hours of debugging.
+- System call layer: we are using, not implementing, OS internals.
+
+## 2. Processes and `init`
+- `init` process (from Unix):
+  - Launches shell (`sh`) via `fork()` and `exec()`.
+  - Uses an infinite loop to wait for child processes.
+  - Cleans up zombies/orphans.
+- Older OS: **uni-programming** - only one process at a time.
+- Modern OS: **multi-programming**, parallel/concurrent execution using CPU cores.
+- **Scheduler**:
+  - Pauses current process, saves its state (registers, memory).
+  - Chooses next process to run.
+  - Loads its state and executes.
+
+### Context Switching
+- Mechanism to switch between processes.
+- Saves current registers, loads next process registers.
+- Overhead exists; optimized by OS (skip saving unused registers).
+
+### Multitasking Styles
+1. **Cooperative**: process must yield CPU voluntarily.
+2. **Preemptive (True multitasking)**: OS can take CPU control, using:
+   - Time slices
+   - Interrupts
+
+## 3. Pipes
+- System call: `pipe(int fds[2])`
+  - Returns `0` on success, `-1` on failure.
+  - `fds[0]` → read end
+  - `fds[1]` → write end
+- Pipe: **one-way communication channel** between processes.
+- Managed by kernel, accessed only via file descriptors.
+
+### Key Points
+- Parent and child processes **share file descriptors** after `fork()`.
+- Important: **close unused ends** to avoid blocking reads/writes.
+
+## 4. Example: Parent → Child Communication
+
+### Child
+```c
+close(fds[1]); // Close write end
+char buffer[496];
+int bytes_read = read(fds[0], buffer, sizeof(buffer));
+if (bytes_read > 0) {
+    printf("%.*s\n", bytes_read, buffer);
+}
+close(fds[0]);
+```
+
+## Parent 
+```c
+close(fds[0]);          // Close read end
+char *msg = "Howdy child";
+write(fds[1], msg, strlen(msg));
+close(fds[1]);
+```
+
+# Pipe Behavior Notes
+
+## Pipe Behavior
+- `read()` is **blocking**: waits for data unless all write ends are closed.
+- Closing **unused file descriptors** ensures `read()` returns `0` when no more data is possible.
+- **Standard file descriptors**:
+  - `0` → stdin
+  - `1` → stdout
+  - `2` → stderr
+- Closing `stdout` (`1`) disables `printf()` output.
+
+## Important Tips
+- **Always close file descriptors** as soon as they are no longer needed to prevent blocking or resource leaks.
+- **Memory management**:
+  - Allocated **before `fork()`** → exists in both parent and child; free in both.
+  - Allocated **after `fork()`** → exists only in that process; free there.
+- **Pipes must be created before `fork()`** to share between parent and child.
+- **Multiple reads advance the pipe buffer**; data is **not repeated** unless explicitly repositioned.
+
+## Common Pitfalls
+- Forgetting to close **write end in child** → `read()` blocks forever.
+- Forgetting to close **read end in parent** → `write()` may succeed but no reader exists.
+- Creating a pipe **after `fork()`** → parent and child have independent pipes → no communication.
+- Using **multiple writers/readers** → execution order affects output (race conditions).
+
+## Fun / Advanced Notes
+- `&` in the shell → runs processes in the background.
+- Recursive pipe forks (`while true; fork`) → can crash the system.
+- Multiple processes reading/writing → race conditions possible.
+- `printf()` may fail if `stdout` is closed.
 
 
 

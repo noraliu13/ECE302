@@ -309,3 +309,170 @@ These are small integer indexes that map to open files, devices, or sockets mana
 1 → stdout  (standard output)
 2 → stderr  (standard error)
 
+# 📘 Lecture 5 – Process Management
+
+## 1. Introduction
+
+- In the previous lecture, we learned **how to create a process**.
+- Today: **managing processes**, understanding the **parent-child relationship**, and Linux-specific **process states**.
+
+## 2. Linux Process States
+
+- Linux has **five main states** for processes:
+
+1. **Running (Runnable)**  
+   - Process is currently running or ready to run.
+   
+2. **Interruptible Sleep (Sleeping)**  
+   - Process has given up the CPU (e.g., waiting after a system call).  
+   - Can be woken up if needed.
+
+3. **Uninterruptible Sleep (Blocked)**  
+   - Process is blocked and cannot run, typically waiting for I/O.
+
+4. **Stopped**  
+   - Process is explicitly paused. Can be resumed later.
+
+5. **Zombie (Zed) State**  
+   - Process has **terminated**, but its **exit status has not been acknowledged** by the parent.  
+   - Exists in the process table but cannot run.
+
+
+## 3. Unix Process Hierarchy
+
+- When a computer boots:
+  - Kernel runs a **single process** (PID 1, often `init` or `systemd`).
+  - PID 1 creates all other processes either **directly or indirectly**.
+- Parent-child relationship:
+  - Strict in Unix.
+  - Parent is responsible for its child’s termination acknowledgment.
+  
+### Example Process Tree
+
+``` text
+init/systemd (PID 1)
+├─ journalD
+├─ udev
+├─ systemd-user
+│ └─ gnome-shell
+│ └─ Firefox
+│ └─ Firefox tabs (each tab = separate process)
+└─ terminal → shell → htop
+```
+
+## 2. Process IDs (PID)
+
+- Every process gets a **unique PID** that does **not change** during its lifetime.
+- Maximum PID in Linux: typically **32,000**, configurable.
+- PID 0: reserved/invalid, used only as a return value in `fork()`.
+
+## 3. Process States (Linux)
+
+1. **Running (Runnable)**: Process is executing or ready to execute.
+2. **Interruptible Sleep**: Process is blocked but can be awakened.
+3. **Uninterruptible Sleep**: Process is blocked waiting for I/O; cannot run.
+4. **Stopped**: Process explicitly paused.
+5. **Zombie**: Process terminated but still has a PID until parent reads its exit status.
+
+## 4. Zombies and Orphans
+
+### 4.1 Zombie Processes
+- **Definition**: Process terminated but **parent has not called `wait()`**.
+- Still occupies:
+  - Process ID
+  - Process Control Block
+- **Example**:
+```c
+if (fork() == 0) {
+    sleep(2);
+    exit(0);
+} else {
+    // Parent does not call wait()
+    sleep(3); 
+    // Child becomes a zombie after 2 seconds
+}
+```
+
+## 4.2 Orphan Processes
+
+- **Definition**: Occurs when a parent process exits while its child is still running.  
+- **Reparenting**: Kernel automatically assigns the orphaned child to a new parent (default: PID 1, `init`/`systemd`).  
+- **Behavior**: Orphaned processes continue to run normally and are eventually cleaned up by the system.
+
+## 5. `wait()` System Call
+
+**Purpose**: Allows a parent process to **acknowledge the termination of its child** and collect its exit status.
+
+**Syntax**:
+```c
+pid_t wait(int *status);
+```
+
+## `wait()` System Call
+
+**Parameters:**  
+- `status` → pointer to an integer where the child's exit information will be stored.
+
+**Return Value:**  
+- PID of terminated child  
+- `-1` on error  
+- `0` for non-blocking calls
+
+**Behavior:**  
+- Blocks until **any child** terminates.
+
+**Macros:**  
+- `WIFEXITED(status)` → Returns true if the child exited normally  
+- `WEXITSTATUS(status)` → Returns the child's exit code
+
+**Example:**
+```c
+pid_t pid = fork();
+if (pid == 0) { 
+    // Child process
+    sleep(2);
+    exit(42);
+} else {
+    // Parent process
+    int wstatus;
+    pid_t cpid = wait(&wstatus);
+    if (WIFEXITED(wstatus)) {
+        printf("Child PID %d exited with status %d\n", cpid, WEXITSTATUS(wstatus));
+    }
+}
+```
+
+## Forking Multiple Processes
+
+- Each `fork()` creates a **duplicate of the calling process**.  
+- **Return values distinguish parent and child:**  
+  - `0` → child process  
+  - `>0` → parent process (PID of child)  
+- Multiple forks can create **many processes**.  
+- **Note:** Variables are copied; be careful with shared data.
+
+## Process Behavior Examples
+
+### Zombie Example
+- Parent does **not call `wait()`**, child sleeps 2 seconds.  
+- After the child exits, it becomes a **zombie** until the parent acknowledges termination.
+
+### Orphan Example
+- Parent sleeps 1 second, child sleeps 2 seconds.  
+- Parent exits **before child**, making the child an **orphan**.  
+- Kernel reassigns the orphaned child to **PID 1 (`systemd`)** for cleanup.
+
+## Process Table Limits
+
+- **Zombies and orphans consume PIDs**.  
+- PID exhaustion can occur due to:  
+  - **Infinite fork loops** → prevents new processes from being created  
+  - **Zombie processes** → occupy PID slots until cleaned up
+
+## Key Takeaways
+
+- `fork()` creates new processes; return values distinguish parent and child.  
+- Each process has a **unique PID** and **independent address space**.  
+- **Zombies**: terminated but **unacknowledged by parent**.  
+- **Orphans**: parent died, **reparented to PID 1**.  
+- Always use `wait()` to **properly clean up child processes**.

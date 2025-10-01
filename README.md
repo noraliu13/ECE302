@@ -263,4 +263,49 @@ They help avoid rewriting common functionality and make programs more modular.
 - Smaller executables  
 - Easy to update shared libraries without recompilation  
 
+# Lecture 4 – Process Creation
+
+## 1. 🔄 What is a Process?
+When we run a program, it becomes a **process**.  
+A process contains:
+- **Virtual registers** (program counter, stack pointer, etc.)  
+- **Virtual memory** (Heap, Stack, Globals)  
+- **Open file descriptors** (array of ints managed by the kernel)  
+
+## 2. 🖥️ Kernel vs User Space
+- **Kernel Mode**
+  - Runs privileged instructions  
+  - Manages processes, files, memory, scheduling  
+
+- **User Mode**
+  - Runs regular applications  
+  - Can only interact with the kernel via **system calls**  
+
+- **Libraries**
+  - Provide higher-level functions  
+  - Often call system calls on behalf of programs  
+
+### Diagram
+```text
+Application (User Mode)
+   |
+   | function calls
+   v
+Library
+   |
+   | system calls
+   v
+Kernel (Kernel Mode)
+```
+
+## 3. 📂 File Descriptors
+
+Every process maintains its own **table of file descriptors (FDs)**.  
+These are small integer indexes that map to open files, devices, or sockets managed by the kernel.  
+
+### Standard File Descriptors
+```text
+0 → stdin   (standard input)
+1 → stdout  (standard output)
+2 → stderr  (standard error)
 

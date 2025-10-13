@@ -1124,6 +1124,100 @@ IFS is **not directly implementable** (it’s idealized), but it serves as a **r
 | **CFS (Completely Fair Scheduler)** | Linux’s practical implementation of IFS. |
 
 
+---
+
+# Lecture 11: Virtual Memory
+
+## Virtual Memory Concept
+
+Each process has its own **virtual memory space**, which must:
+
+- Allow multiple processes to coexist.
+- Keep processes unaware of each other’s memory unless explicitly shared.
+- Be performant (close to using physical memory directly).
+- Minimize fragmentation (wasted space).
+
+Memory is **byte-addressable**:
+
+- Each address indexes a single byte.
+- Pointers are essentially indexes into this array.
+
+
+## Segmentation (Historical)
+
+- Segments divide virtual memory into **coarse-grain sections** (code, data, stack, heap).  
+- Each segment has:
+  - Base address (starting point in physical memory)
+  - Limit (size)
+  - Permissions (read, write, execute)
+- Virtual address structure:  `[Segment Selector | Offset]`
+- MMU checks bounds and permissions. Out-of-bounds access → **segmentation fault**.  
+- Modern OSes rarely use segmentation because:
+- Variable size management complexity
+- Fragmentation issues
+- Linux disables hardware segmentation by default.
+
+## Paging
+
+To improve efficiency, memory is divided into **fixed-size blocks** called **pages**.
+
+- **Page Size**: Typically 4,096 bytes (4 KB) on x86 systems.
+- **Physical Memory Block**: Also called a **frame**.
+- MMU translates **virtual pages → physical frames**.
+- Benefits:
+- Translate blocks instead of individual bytes
+- Offset within page remains the same
+
+## Page Table
+
+- **Page Table**: Maps virtual page numbers (VPN) → physical page numbers (PPN).  
+- **Virtual Address Structure**: `[VPN | Offset]`
+
+- 
+### Page Table Entry (64-bit)
+
+- **Valid bit**: Is the translation valid?
+- **Physical Page Number (PPN)**: Maps virtual page to physical page
+- **Permissions**: Readable, writable, executable
+- **Other flags**: Accessed, dirty, global, supervisor-reserved bits
+
+## Translation Example
+
+### Given
+
+- Page size: 4,096 bytes (12-bit offset)
+- Virtual address: `0x0AB0`
+- Page table:
+
+| Virtual Page | Physical Page |
+|--------------|---------------|
+| 0            | 1             |
+| 1            | 4             |
+| 2            | 3             |
+| 3            | 7             |
+
+### Steps
+
+1. Extract **offset**: last 3 hex digits → `0xAB0`
+2. Extract **VPN**: remaining digits → `0x0`
+3. Look up page table: VPN `0` → PPN `1`
+4. Physical address = PPN + offset → `0x1AB0`
+
+Virtual address `0x0001` → VPN 0, offset 0x001 → Physical address `0x1001`
+
+## Quick Notes
+
+- **Offset never changes**; it represents which byte within the page is being accessed.  
+- Page tables can get large if virtual address space is large.  
+- Typical 64-bit systems do not use the full 64-bit virtual address space.  
+  - Example: use 39-bit virtual addresses → 512 GB per process.
+
+## Summary
+
+- Virtual memory allows **process isolation** and **efficient memory usage**.  
+- Segmentation is mostly historical; paging is the standard.  
+- Page tables map virtual addresses → physical addresses using fixed-size pages.  
+- Understanding virtual → physical translation is critical for debugging memory access and understanding OS behavior.
 
 
 

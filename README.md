@@ -83,9 +83,9 @@ Memory     │ ├─────────┤  ├─────────
           └─┴─────────┴──┴───────────┴──┘
 
 ```
- 
-Lecture 2
 
+---
+ 
 # Lecture 2 – Kernels, System Calls, and Hello World Internals
 
 ## 🌐 Introduction
@@ -176,7 +176,7 @@ X1 = arg1
 ...
 SVC → trap into kernel
 ```
-
+---
 
 # Lecture 3 – System Calls, Kernels, and Libraries
 
@@ -261,7 +261,9 @@ They help avoid rewriting common functionality and make programs more modular.
 
 **Advantages**:  
 - Smaller executables  
-- Easy to update shared libraries without recompilation  
+- Easy to update shared libraries without recompilation
+
+---
 
 # Lecture 4 – Process Creation
 
@@ -308,6 +310,8 @@ These are small integer indexes that map to open files, devices, or sockets mana
 0 → stdin   (standard input)
 1 → stdout  (standard output)
 2 → stderr  (standard error)
+
+--- 
 
 # 📘 Lecture 5 – Process Management
 
@@ -477,6 +481,8 @@ if (pid == 0) {
 - **Orphans**: parent died, **reparented to PID 1**.  
 - Always use `wait()` to **properly clean up child processes**.
 
+---
+
 # Lecture 6 – Basic IPC and Signals
 
 ## Introduction to IPC
@@ -627,9 +633,10 @@ void sigchld_handler(int signal_num) {
 - Signal handlers can handle or ignore signals.
 - Non-blocking waits and signal-driven waits provide flexibility in process management.
 - Proper cleanup is essential to avoid **zombies** and **resource leaks**.
-- 
 
-# Lecture 7: Operating Systems - Processes and Pipes
+---
+
+# Lecture 7: Processes and Pipes
 
 ## 1. Overview
 - Today’s focus: process creation, zombies/orphans, signals, and interprocess communication (IPC) via pipes.
@@ -722,9 +729,10 @@ close(fds[1]);
 - Recursive pipe forks (`while true; fork`) → can crash the system.
 - Multiple processes reading/writing → race conditions possible.
 - `printf()` may fail if `stdout` is closed.
-- 
 
-# Operating Systems Lecture 8 Notes
+---
+
+# Lecture 8 - Subproccesses
 
 ## Lecture Overview
 - Topic: Completing Lab 2 – sending and receiving data from a process.
@@ -733,7 +741,7 @@ close(fds[1]);
   2. Send the string `"testing\n"` to that process.
   3. Receive and read any data printed to its standard output.
 
----
+ 
 
 ## APIs Covered
 ### `execve` / `execvp`
@@ -749,7 +757,7 @@ close(fds[1]);
   - Closes `newfd` first if already in use.
   - Useful to manipulate standard file descriptors (`stdin`, `stdout`, `stderr`) before `exec`.
 
----
+ 
 
 ## File Descriptors
 - Standard FDs:
@@ -759,7 +767,7 @@ close(fds[1]);
 - Closing `stdout` disables `printf()` output.
 - Pipes are **one-way communication channels**; need one pipe per direction.
 
----
+ 
 
 ## Pipe Setup & Forking
 1. **Create pipe before fork** to share between parent and child.
@@ -776,7 +784,7 @@ close(fds[1]);
 - Write data to the pipe using `write(pipe_fd, buffer, size)`.
 - Read from the pipe with `read(pipe_fd, buffer, size)`.
 
----
+ 
 
 ## Example: Capturing `uname` Output
 - Parent creates a pipe (`out_pipe`) and forks.
@@ -790,7 +798,7 @@ close(fds[1]);
 
 **Important**: Always close unused FDs to avoid blocking or resource leaks.
 
----
+ 
 
 ## Bidirectional Communication
 - Use two pipes:
@@ -801,14 +809,12 @@ close(fds[1]);
   - Child `stdin` → `in_pipe` read end.
 - Parent writes data to `in_pipe` and reads from `out_pipe`.
 
----
+ 
 
 ## Example: Sending `"testing\n"` to a child running `cat`
 1. Parent writes `"testing\n"` to `in_pipe`.
 2. Child reads from `stdin` (redirected to `in_pipe`) and writes to `stdout` (redirected to `out_pipe`).
 3. Parent reads from `out_pipe` and sees `"testing\n"`.
-
----
 
 ## Best Practices
 - **Close file descriptors** as soon as you are done using them:
@@ -849,6 +855,85 @@ close(fds[1]);
 - Always wait for child termination to avoid creating zombies or orphaned processes.  
 
 
+---
+
+Lecture 9: Basic Scheduling 
+
+# CPU Scheduling
+
+## Overview
+CPU scheduling determines **which process runs when**.  
+This topic follows process management (creation, termination, adoption, etc.) and focuses on CPU resource sharing.
+
+## Types of Resources
+
+### Preemptable Resources
+- Can be taken away and reassigned.
+- Example: CPU.
+- Shared via **scheduling**.
+
+### Non-Preemptable Resources
+- Cannot be taken without consent.
+- Examples: Disk, memory.
+- Shared via **allocation/deallocation**.
+
+## Dispatcher vs Scheduler
+
+- **Dispatcher**: Performs the actual context switch (saves and restores process state).
+- **Scheduler**: Decides **which process runs next**.
+
+Schedulers run when:
+- A process terminates.
+- A process blocks.
+- (Preemptive) The OS interrupts and selects another process.
+
+## Scheduling Evaluation Metrics
+
+- Minimize **waiting time**  
+- Minimize **response time**  
+- Maximize **CPU utilization**  
+- Maximize **throughput**  
+- Ensure **fairness**
+
+> Note: Fairness can conflict with other metrics (e.g., minimizing waiting time).
+
+## Scheduling Algorithms
+
+### 1. First Come First Serve (FCFS)
+- Non-preemptive.
+- Processes are executed in order of arrival (FIFO).
+- Simple to implement.
+- Can cause **long waiting times** for short jobs behind long ones (**convoy effect**).
+
+### 2. Shortest Job First (SJF)
+- Non-preemptive.
+- Picks the process with the shortest CPU burst next.
+- **Optimal** for minimizing average waiting time.
+- Requires knowledge of burst times → **impractical**.
+- Can lead to **starvation** (long jobs never run).
+
+### 3. Shortest Remaining Time First (SRTF)
+- Preemptive version of SJF.
+- Preempts running process if a new one has shorter remaining time.
+- Optimal for average waiting time.
+- Still **impractical** and prone to **starvation**.
+
+### 4. Round Robin (RR)
+- **Preemptive and fair.**
+- Each process gets a fixed **time quantum**.
+- If unfinished, it moves to the back of the ready queue.
+- Context switches occur between processes.
+
+**Tradeoffs:**
+- **Short quantum** → more context switches (higher overhead).
+- **Long quantum** → less fairness (behaves like FCFS).
+
+## Key Takeaways
+
+- **FCFS:** Simple but unfair to short jobs.  
+- **SJF / SRTF:** Optimal but impractical; risk of starvation.  
+- **Round Robin:** Fair and widely used.  
+- **Starvation:** Common in SJF and SRT
 
 
 

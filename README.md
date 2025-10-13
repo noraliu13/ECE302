@@ -1,5 +1,3 @@
-# ECE 344 – Operating Systems  
-
 # Lecture 1: Operating Systems
 
 ## 📌 Core OS Themes  

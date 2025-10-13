@@ -1220,5 +1220,106 @@ Virtual address `0x0001` → VPN 0, offset 0x001 → Physical address `0x1001`
 - Understanding virtual → physical translation is critical for debugging memory access and understanding OS behavior.
 
 
+# Lecture 12: Page Tables
 
 
+Page tables are used to translate blocks of memory at a time. Previously, our major issue was that **page table size was huge**.
+
+We have a virtual address, and we split it into:
+
+- **Offset**: 12 bits (for 4 KB pages)
+- **VPN (Virtual Page Number)**: 27 bits (to select the virtual page)
+
+The page table has \(2^{27}\) entries. Each **page table entry (PTE)**:
+
+- Has a **valid bit**
+- Stores the **PPN (Physical Page Number)**
+- Is 8 bytes in size
+
+The offset remains 12 bits.
+
+### Page Table Size Calculation
+
+Each entry = 8 bytes  
+Number of entries = \(2^{27}\)  
+
+\[
+2^{27} \times 8 \text{ bytes} = 2^{30} \text{ bytes} = 1 \text{ GB}
+\]
+
+- Each process has its **own page table**
+- Example: 16 processes → 16 GB for page tables, leaving almost no RAM for programs.
+
+---
+
+## Reducing Page Table Size
+
+To make page tables smaller:
+
+- Fit **one page table per page** in memory
+- Page size = `2^12` bytes
+- Entry size = `8` bytes
+- Number of entries per page table = `2^12 / 8 = 2^9 = 512`
+
+## Multi-Level Page Tables
+
+To translate large addresses without giant tables:
+
+- Split VPN into multiple levels
+- Example: 27-bit VPN → 3 levels (9 bits per level)
+
+**Translation process:**
+
+1. L2 page table gives **index for L1 page table**
+2. L1 page table gives **index for L0 page table**
+3. L0 page table gives the **PPN** for the virtual page
+
+**Memory required per single virtual address:**
+
+- 3 page tables × 4 KB per table = 12 KB
+- Much smaller than the 1 GB for a single-level page table
+
+### Entry Structure
+
+- Each **PTE** has a **valid bit** and a **PPN**
+- L2/L1 entries point to the next level
+- L0 entries point to the actual physical page
+
+## Memory Allocation for Page Tables
+
+- **Memory allocator** uses a **free list** of pages
+- Allocate/deallocate in units of pages
+- Page tables are just normal pages in physical memory
+
+## Example Translation (Two-Level Page Table)
+
+- Virtual address split:
+
+  - 12-bit offset
+  - 9-bit L0 index
+  - 9-bit L1 index
+
+- Steps:
+
+  1. Extract offset (12 bits)
+  2. Use L1 index to find L0 page table
+  3. Use L0 index to find physical page number
+  4. Combine with offset → final physical address
+
+- If page table entries point incorrectly (e.g., cyclic reference), this could lead to **segmentation faults** or wrong translations.
+
+
+## Advantages of Multi-Level Page Tables
+
+- **Significant memory savings**: only allocate tables for used portions of virtual memory
+- **Flexibility**: supports large virtual address spaces without allocating a huge single-level table
+- **Drawbacks**: each memory access requires multiple table lookups (4 accesses in a 3-level system)
+
+
+## Summary
+
+- Page tables map **VPN → PPN**
+- Multi-level page tables reduce memory usage drastically
+- Each page table level is an array of PTEs fitting in a page
+- Translation involves walking the page table levels to reach the PPN
+- Free list allocator simplifies memory management

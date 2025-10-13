@@ -1,6 +1,6 @@
 # ECE 344 – Operating Systems  
 
-Lecture 1
+# Lecture 1: Operating Systems
 
 ## 📌 Core OS Themes  
 
@@ -86,7 +86,7 @@ Memory     │ ├─────────┤  ├─────────
 
 ---
  
-# Lecture 2 – Kernels, System Calls, and Hello World Internals
+# Lecture 2:  Kernels
 
 ## 🌐 Introduction
 - Explore what happens when running **Hello World**.
@@ -178,7 +178,7 @@ SVC → trap into kernel
 ```
 ---
 
-# Lecture 3 – System Calls, Kernels, and Libraries
+# Lecture 3: Libraries - System Calls, Kernels, and Libraries
 
 ## 🔧 System Calls Recap
 - A **system call** is a function that runs in **kernel mode** instead of **user mode**.  
@@ -265,7 +265,7 @@ They help avoid rewriting common functionality and make programs more modular.
 
 ---
 
-# Lecture 4 – Process Creation
+# Lecture 4: Process Creation
 
 ## 1. 🔄 What is a Process?
 When we run a program, it becomes a **process**.  
@@ -310,10 +310,10 @@ These are small integer indexes that map to open files, devices, or sockets mana
 0 → stdin   (standard input)
 1 → stdout  (standard output)
 2 → stderr  (standard error)
-
+```
 --- 
 
-# 📘 Lecture 5 – Process Management
+# Lecture 5: Process Management
 
 ## 1. Introduction
 
@@ -483,7 +483,7 @@ if (pid == 0) {
 
 ---
 
-# Lecture 6 – Basic IPC and Signals
+# Lecture 6: Basic IPC and Signals
 
 ## Introduction to IPC
 - IPC (Interprocess Communication) is necessary because processes are independent.
@@ -636,7 +636,7 @@ void sigchld_handler(int signal_num) {
 
 ---
 
-# Lecture 7: Processes and Pipes
+# Lecture 7: Process Practice - Pipes
 
 ## 1. Overview
 - Today’s focus: process creation, zombies/orphans, signals, and interprocess communication (IPC) via pipes.
@@ -732,7 +732,7 @@ close(fds[1]);
 
 ---
 
-# Lecture 8 - Subproccesses
+# Lecture 8: Subprocesses
 
 ## Lecture Overview
 - Topic: Completing Lab 2 – sending and receiving data from a process.
@@ -857,9 +857,7 @@ close(fds[1]);
 
 ---
 
-Lecture 9: Basic Scheduling 
-
-# CPU Scheduling
+# Lecture 9: Basic Scheduling 
 
 ## Overview
 CPU scheduling determines **which process runs when**.  

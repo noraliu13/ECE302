@@ -931,6 +931,197 @@ Schedulers run when:
 - **Round Robin:** Fair and widely used.  
 - **Starvation:** Common in SJF and SRT
 
+---
+
+# Lecture 10: Advanced Scheduling 
+
+## 1. Review: Basic Scheduling
+**Scheduling** determines the order in which processes run.
+
+Examples:
+- **Round Robin (RR)**
+- **First-Come, First-Serve (FCFS)**
+
+## 2. Priorities
+
+### Priority Scheduling
+- Each process is assigned a **priority**.
+- Higher-priority processes run before lower-priority ones.
+- Processes of equal priority can use **Round Robin** for fairness.
+- Can be **preemptive** or **non-preemptive**.
+
+**Linux convention:**
+- Lower number = higher priority.
+- Range: `-20` (highest) → `19` (lowest).
+
+### Starvation
+- A low-priority process might never run if high-priority ones keep arriving.
+- **Solution:** *Priority aging* — gradually increase a waiting process’s priority over time.
+
+## 3. Priority Inversion
+Occurs when a **high-priority process depends** on a **low-priority** one holding a resource.
+
+### Example
+- Low-priority process holds a lock.
+- High-priority process needs that lock → it must wait.
+- Medium-priority processes can still run and delay completion.
+
+### Solution: Priority Inheritance
+- The low-priority process **temporarily inherits** the higher priority.
+- Prevents unnecessary blocking.
+- Can chain through multiple dependent processes.
+
+## 4. Foreground vs Background Processes
+- **Foreground:** User-interactive; needs *low response time*.
+- **Background:** Non-interactive; optimize for *throughput*.
+
+Possible to use **different scheduling algorithms**:
+- Foreground → Round Robin
+- Background → FCFS
+
+Can mix with **multi-level queues**:
+- Foreground queue
+- Background queue  
+→ Each queue can use different algorithms or static priorities.
+
+## 5. Multiprocessor Scheduling
+
+### Symmetric Multiprocessing (SMP)
+- Multiple CPUs (cores) sharing the same memory.
+- Each CPU can run any process.
+- Each core typically has its own cache.
+
+### 5.1 Global Scheduler (Single Queue)
+- One global ready queue for all CPUs.
+
+**Advantages:**
+- High CPU utilization.
+- Fairness across all processes.
+
+**Disadvantages:**
+- Not scalable (requires global locking).
+- Poor cache locality — process might move between CPUs, losing cached data.
+
+### 5.2 Per-CPU Scheduler
+- Each CPU maintains its own **local ready queue**.
+
+**Advantages:**
+- Scalable (no shared lock).
+- Better cache locality.
+
+**Disadvantages:**
+- Possible load imbalance (some CPUs idle, others overloaded).
+
+### 5.3 Work Stealing (Hybrid)
+- Idle CPUs “steal” tasks from busy CPUs.
+- Helps maintain fairness and CPU utilization.
+
+## 6. Processor Affinity
+- A process’s **preference to stay** on the same CPU core.
+- Improves **cache performance** and **reduces context switching cost**.
+- Can be manually set using OS tools (e.g., `taskset` in Linux, Task Manager in Windows).
+
+## 7. Gang Scheduling
+- Schedule related processes (e.g., threads of the same program) **simultaneously** across multiple CPUs.
+- Common in **High-Performance Computing (HPC)**.
+- Ensures synchronized progress for tightly-coupled tasks.
+
+## 8. Real-Time Scheduling
+
+### Real-Time Characteristics
+Processes must meet timing constraints.
+
+**Two main types:**
+1. **Hard Real-Time:**  
+   - Deadlines *must* be met (e.g., autopilot, embedded systems).  
+   - Requires strict timing guarantees.
+
+2. **Soft Real-Time:**  
+   - Deadlines are best-effort (e.g., video playback, audio streaming).  
+   - No absolute guarantee, just higher priority.
+
+**Linux:**
+- Supports **only soft real-time**.
+- Uses high-priority scheduling for time-sensitive tasks.
+
+
+## 9. Scheduling Algorithms in Linux
+
+| Type | Algorithm | Description |
+|------|------------|-------------|
+| Real-time | **SCHED_FIFO** | First-Come, First-Serve |
+| Real-time | **SCHED_RR** | Round Robin |
+| Normal | **SCHED_NORMAL** | Default for user processes |
+
+### Priority Ranges
+- **Real-time:** `0–99` (higher = higher priority)
+- **Normal:** `-20 → 19` (niceness values)
+- Linux internal range: `-1 → 139`
+
+`nice` command:  
+- Lower niceness = higher CPU priority.  
+- "Niceness" = willingness to yield CPU time.
+
+
+## 10. Reading Priorities in `htop`
+
+| Process | PRI | NI | Description |
+|----------|-----|----|-------------|
+| systemd | 20 | 0 | Normal |
+| auditd | 16 | -4 | Elevated priority |
+| pipewire (audio) | 9 | -11 | High priority |
+| Kernel migration thread | RT | — | Real-time (-100 equivalent) |
+
+
+## 11. IFS – Ideal Fair Scheduling
+
+### Concept
+IFS (Ideal Fair Scheduling) defines the **theoretical goal** of fair scheduling:
+> “If there are *N* runnable processes, each should receive **1/N** of the CPU time.”
+
+In other words:
+- Every process gets an **equal share** of CPU time.
+- A perfectly fair scheduler would distribute CPU time exactly evenly.
+
+IFS is **not directly implementable** (it’s idealized), but it serves as a **reference model** for how real schedulers should behave.
+
+### Key Idea
+- Track how much CPU time each process has received so far.
+- Always run the process with the **smallest accumulated runtime**.
+- Ensures fairness and prevents starvation.
+
+
+## 12. CFS – Completely Fair Scheduler
+
+### Motivation
+- Designed to **approximate IFS** on real systems.
+- Replaced the older **O(1)** scheduler in Linux.
+- Balances fairness and performance, especially on multi-core systems.
+
+### How It Works (Simplified)
+- Each process has a **virtual runtime (vruntime)** that tracks how much CPU time it has used.
+- The process with the **lowest vruntime** runs next.
+- Uses a **red-black tree** to efficiently select the process with the smallest vruntime.
+- Adjusts for priorities: higher-priority tasks accumulate vruntime more slowly.
+
+### Properties
+- Approximates ideal fairness (IFS).
+- Prevents starvation.
+- Scales well for multi-core systems.
+- Adapts smoothly to CPU-bound and I/O-bound workloads.
+
+## ✅ Summary
+
+| Concept | Description |
+|----------|-------------|
+| **Priority Scheduling** | Higher-priority processes preempt lower ones. |
+| **Priority Inversion** | Solved with priority inheritance. |
+| **Multiprocessor Scheduling** | Global vs Per-CPU queues; work stealing for balance. |
+| **Processor Affinity** | Keeps processes on the same CPU for cache efficiency. |
+| **Gang Scheduling** | Synchronize parallel tasks. |
+| **Real-Time Scheduling** | Hard vs Soft deadlines. |
+| **IFS (Ideal Fair Scheduling)** | Theoretical model of perfect fairness. |
+| **CFS (Completely Fair Scheduler)** | Linux’s practical implementation of IFS. |
 
 
 

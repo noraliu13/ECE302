@@ -1323,3 +1323,153 @@ To translate large addresses without giant tables:
 - Each page table level is an array of PTEs fitting in a page
 - Translation involves walking the page table levels to reach the PPN
 - Free list allocator simplifies memory management
+
+
+# Lecture 13: Page Table Implementation
+
+## Page Tables and Multi-Level Translation
+
+- Start with a root page table for a process.
+- Root table tells which L2 page table to use.
+- L2 table index selects an entry using **9 bits**.
+- Entry points to the next level (L1 page table).
+- L1 table points to **L0 page table** in memory.
+- L0 table gives the final physical page number (PPN).
+
+### Example
+
+- Maximum one L1 page table in a simple example.
+- Full L1 can point to **512 different L1 tables**.
+- Each L1 table can also point to 512 different L0 tables.
+- All entries combined may need **1 GB** if fully populated.
+
+**Key point:** Multi-level page tables save memory compared to a single giant table.
+
+
+## Alignment
+
+- **Alignment** ensures memory starts at multiples of page size (e.g., 4 KB).
+- Reduces storage: only store **PPN**, offset is implied.
+- Check 8-byte alignment: Address divisible by 8 (bottom hex digit 0 or 8).
+- Physical pages always start at offset 0 and end at offset all-ones.
+
+
+## Minimum and Maximum Page Tables
+
+### Scenario
+
+- Process uses **512 virtual pages**.
+- Single page table can hold 512 entries per page.
+
+### Minimum Page Tables
+
+- 1 L2, 1 L1, 1 L0 → total **3 page tables**.
+
+### Maximum Page Tables
+
+- Worst case: L2 full → 512 L1 tables, each L1 only points to 1 L0 table.
+- Total = **1 + 512 + 512 = 1025 page tables**.
+
+**Contiguous virtual memory** reduces the number of page tables needed.
+
+
+## Number of Levels Needed
+
+- **Virtual address bits:** 32-bit
+- **Page size:** 4 KB → 12-bit offset
+- **PTE size:** 4 bytes → 2^2
+- Page table entries per page = 2^12 / 2^2 = 2^10 = 1024 entries
+
+### Formula
+Levels = `ceil((Virtual bits - Offset bits) / Index bits per level)`
+
+
+- Example: 32-bit VA → 20 bits for VPN
+- Index bits = 10  
+- Levels = ceil(20 / 10) = 2 → L0 and L1 indexes
+
+- 64-bit VA (39 bits) → 3 levels
+- Extra memory accesses due to more levels.
+
+## Translation Lookaside Buffer (TLB)
+
+- **TLB** is a cache for VPN → PPN mappings.
+- Avoids repeated multi-level page table traversal.
+- TLB hit → fast access  
+- TLB miss → go through page table translation
+- TLB only stores a limited number of entries
+- Typically **per-process**, flushed on context switch if no hardware PID support.
+
+### Effective Access Time
+
+`TLB_Hit_Time` = `TLB_Search + Mem`
+`TLB_Miss_Time` = `TLB_Search + 2 * Mem`
+`EAT` = `α * T_hit + (1 - α) * T_miss`
+
+- Example: 80% hit, TLB hit = 10 ns, memory = 100 ns  
+- EAT = 0.8*10 + 0.2*210 = 130 ns  
+- 30% slower than raw memory
+
+
+## Memory Access Patterns
+
+- Accessing contiguous memory improves performance:
+  - More likely same page → fewer TLB misses.
+- Example `test_tlb`:
+  - Allocate 4 KB, stride 4 bytes → 1 miss, 123 hits
+  - Allocate 512 MB, stride 4 KB → every access a miss → 30x slower
+
+
+## Heap and Stack Management
+
+- **Heap**: Managed by `malloc`/`sbrk`/`mmap`.
+  - Kernel maps pages from free list.
+  - Shrinking heap is limited to contiguous pages at the end.
+- **Stack**:
+  - Fixed size + guard page
+  - Guard page triggers stack overflow error
+  - Overflow past guard → segfault
+
+
+## Kernel and Fixed Virtual Addresses
+
+- Kernel may map certain virtual addresses for performance:
+  - e.g., reading system time without system call
+- Helps processes avoid expensive system calls for known resources.
+
+
+**Key Takeaways:**
+
+- Multi-level page tables save memory.
+- Alignment simplifies PPN storage.
+- TLBs improve performance significantly.
+- Contiguous virtual memory reduces page tables and TLB misses.
+- Stack overflow protection uses guard pages.
+- Kernel can provide fixed virtual addresses for performance.
+
+## Userspace Memory Allocation
+- **`sbrk`** grows or shrinks the **heap** (not the stack).  
+- When growing, it **grabs pages from the free list** and sets `PTE_V` (valid) and permissions.  
+- In practice, `sbrk` is rarely used to shrink heaps — once allocated, pages stay claimed.  
+- Modern memory allocators typically use **`mmap`** instead, to get large virtual memory blocks efficiently.
+
+## Fixed Virtual Addresses
+- The **kernel can map fixed virtual addresses** into a process, allowing user programs to read kernel data directly.  
+- This avoids system calls — e.g., `clock_gettime()` just reads from a mapped address instead of making a syscall.
+
+## Page Faults & Virtual Memory Management
+- **Page faults** are exceptions triggered when:
+  - The MMU cannot find a valid translation, or  
+  - Permission checks fail.  
+- They let the OS handle memory dynamically — enabling:
+  - **Lazy allocation**
+  - **Copy-on-write**
+  - **Swapping pages to disk**
+
+## Page Tables & Address Translation
+- The **MMU (Memory Management Unit)** translates virtual to physical addresses using **page tables**, which can be:
+  - **Single large tables** (wasteful for 32-bit systems)
+  - **Multi-level tables** (space-efficient for sparse memory)
+  - **TLB-backed** (Translation Lookaside Buffer) to speed up access
+
+

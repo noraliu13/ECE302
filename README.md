@@ -1403,7 +1403,9 @@ Levels = `ceil((Virtual bits - Offset bits) / Index bits per level)`
 ### Effective Access Time
 
 `TLB_Hit_Time` = `TLB_Search + Mem`
+
 `TLB_Miss_Time` = `TLB_Search + 2 * Mem`
+
 `EAT` = `α * T_hit + (1 - α) * T_miss`
 
 - Example: 80% hit, TLB hit = 10 ns, memory = 100 ns  

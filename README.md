@@ -1752,3 +1752,161 @@ Thread running!
 ```
 - The thread runs in the background.
 - You don’t join it; it cleans itself up.
+
+
+# Lecture 17: Thread Implementation 
+
+## Threading Approaches
+
+There are two main approaches to implementing threads:
+
+### 1. User Threads
+- Implemented completely in **user space**.
+- Kernel is **not aware** of user threads.
+- The process starts with a single thread. User threads enable **concurrency**, switching execution as needed.
+- **Advantages**:
+  - Fast creation and destruction (no system calls).
+  - Portable (works on Windows, macOS, Linux, etc.).
+- **Drawbacks**:
+  - No parallelism (kernel schedules only the process, not individual threads).
+  - If one thread performs a blocking system call, the **entire process blocks**.
+
+### 2. Kernel Threads
+- Implemented in **kernel space**.
+- Created via **system calls** (slower than function calls).
+- Kernel manages everything (stack allocation, registers, scheduling).
+- Can achieve **true parallelism** on multi-core systems.
+- **Advantages**:
+  - Other threads can continue if one blocks.
+  - Enables parallel execution on multiple cores.
+- **Drawbacks**:
+  - Slower creation.
+  - Less control over scheduling.
+
+## Thread Libraries and Mapping
+
+Threading libraries manage the mapping between user threads and kernel threads:
+
+| Model        | Description                                                                 |
+|--------------|-----------------------------------------------------------------------------|
+| **Many-to-One**  | Multiple user threads mapped to a single kernel thread (pure user threads, fast, portable, cooperative). |
+| **One-to-One**   | Each user thread maps to a single kernel thread (e.g., `pthread_create`, supports parallelism).       |
+| **Many-to-Many** | Multiple user threads mapped to fewer kernel threads, dynamic mapping (complex, like Java Virtual Threads). |
+
+- **Many-to-One**: Pure user space, cooperative threads.
+- **One-to-One**: Kernel threads, allows parallelism.
+- **Many-to-Many**: Hybrid approach, complex mapping, can be unpredictable.
+
+## Thread Support & Control
+
+- Threads require a **Thread Control Block (TCB)**, similar to a **Process Control Block (PCB)**.
+- **User Threads** need a runtime system for **scheduling**.
+- **Kernel Threads** rely on kernel scheduling.
+- Thread states: **Ready**, **Running**, **Blocked**.
+
+## Signals in Multi-Threaded Processes
+
+- If a signal is sent to a process with multiple threads:
+  - Linux picks **one thread at random** to handle the signal.
+- This can lead to non-deterministic behavior.
+- **Recommendation**: Use **thread pools** for short-lived tasks to maintain performance and avoid creating thousands of threads.
+
+## Example: Race Condition with Threads
+
+```c
+#include <pthread.h>
+#include <stdio.h>
+
+#define NUM_THREADS 8
+
+int counter = 0; // Global variable
+
+void* increment(void* arg) {
+    for(int i = 0; i < 10000; i++) {
+        counter++; // Race condition!
+    }
+    return NULL;
+}
+
+int main() {
+    pthread_t threads[NUM_THREADS];
+
+    for(int i = 0; i < NUM_THREADS; i++) {
+        pthread_create(&threads[i], NULL, increment, NULL);
+    }
+
+    for(int i = 0; i < NUM_THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    printf("Final counter value: %d\n", counter);
+    return 0;
+}
+```
+
+**Expected Result:**  
+`80,000 (8 * 10,000)`
+
+**Actual Result:**  
+Can vary due to **race conditions**.
+
+**Why?**  
+`counter++` is **not atomic**.  
+The operation involves **read → increment → write**, which can **interleave between threads**, leading to inconsistent results.
+
+
+# Fixing Race Conditions
+
+## Option 1: Join Immediately
+- Run threads **sequentially** to ensure safe increments.
+- **Drawback:** No parallelism, defeating the purpose of multi-threading.
+
+## Option 2: Thread-local Counters
+- Each thread increments a **local counter**.
+- Combine results **after all threads finish**.
+
+```c
+#define NUM_THREADS 8
+static int counter = 0;
+
+void* increment(void* arg) {
+    int* local = malloc(sizeof(int));
+    *local = 0;
+    for(int i = 0; i < 10000; i++) {
+        (*local)++;
+    }
+    return local;
+}
+
+int main() {
+    pthread_t threads[NUM_THREADS];
+    // Create threads
+    for(int i = 0; i < NUM_THREADS; i++) {
+        pthread_create(&threads[i], NULL, increment, NULL);
+    }
+
+    // Join threads and combine results
+    for(int i = 0; i < NUM_THREADS; i++) {
+        int* ret;
+        pthread_join(threads[i], (void**)&ret);
+        counter += *ret;
+        free(ret);
+    }
+
+    printf("Final counter value: %d\n", total);
+}
+```
+> **Note:** pthread_join waits for a thread to finish before returning.
+
+### Visualization
+```
+Thread 1: *local = 10000
+Thread 2: *local = 10000
+Thread 3: *local = 10000
+Thread 4: *local = 10000
+...
+main thread waits for thread i -> adds *local to counter
+```
+
+- Threads run in parallel, but their increments don’t touch `counter`.
+- Only main thread modifies `counter`, sequentially after each join.

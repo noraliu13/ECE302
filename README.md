@@ -1,17 +1,29 @@
 # Table of Contents
-- [Kernels](#lecture-1-operating-systems)
-- [Processes](#lecture-4-process-creation)
-- [Scheduling](#lecture-9-basic-scheduling)
-- [Threads](#lecture-16-threads)
 
-# Introduction
-This is the intro section.
+**Kernels**
+- [Lecture 1: Operating Systems](#lecture-1-operating-systems)
+- [Lecture 2: Kernels](#lecture-2-kernels)
+- [Lecture 3: Libraries](#lecture-3-libraries)
 
-# Race Conditions
-Explanation of race conditions here.
+**Processes**
+- [Lecture 4: Process Creation](#lecture-4-process-creation)
+- [Lecture 5: Process Management](#lecture-5-process-management)
+- [Lecture 6: Basic IPC](#lecture-6-basic-ipc)
+- [Lecture 7: Process Practice](#lecture-7-process-practice)
+- [Lecture 8: Subprocess](#lecture-8-subprocess)
 
-# Fixing Race Conditions
-Ways to fix race conditions.
+**Scheduling**
+- [Lecture 9: Basic Scheduling](#lecture-9-basic-scheduling)
+- [Lecture 10: Advanced Scheduling](#lecture-10-advanced-scheduling)
+- [Lecture 11: Virtual Memory](#lecture-11-virtual-memory)
+- [Lecture 12: Page Tables](#lecture-12-page-tables)
+- [Lecture 13: Page Table Implementation](#lecture-13-page-table-implementation)
+
+**Midterm Break**
+
+**Threads**
+- [Lecture 16: Threads](#lecture-16-threads)
+- [Lecture 17: Thread Implementation](#lecture-17-thread-implementation)
 
 
 # Lecture 1: Operating Systems
@@ -100,7 +112,7 @@ Memory     │ ├─────────┤  ├─────────
 
 ---
  
-# Lecture 2:  Kernels
+# Lecture 2: Kernels
 
 ## 🌐 Introduction
 - Explore what happens when running **Hello World**.
@@ -192,7 +204,7 @@ SVC → trap into kernel
 ```
 ---
 
-# Lecture 3: Libraries - System Calls, Kernels, and Libraries
+# Lecture 3: Libraries
 
 ## 🔧 System Calls Recap
 - A **system call** is a function that runs in **kernel mode** instead of **user mode**.  
@@ -497,7 +509,7 @@ if (pid == 0) {
 
 ---
 
-# Lecture 6: Basic IPC and Signals
+# Lecture 6: Basic IPC
 
 ## Introduction to IPC
 - IPC (Interprocess Communication) is necessary because processes are independent.
@@ -650,7 +662,7 @@ void sigchld_handler(int signal_num) {
 
 ---
 
-# Lecture 7: Process Practice - Pipes
+# Lecture 7: Process Practice
 
 ## 1. Overview
 - Today’s focus: process creation, zombies/orphans, signals, and interprocess communication (IPC) via pipes.
@@ -746,7 +758,7 @@ close(fds[1]);
 
 ---
 
-# Lecture 8: Subprocesses
+# Lecture 8: Subprocess
 
 ## Lecture Overview
 - Topic: Completing Lab 2 – sending and receiving data from a process.

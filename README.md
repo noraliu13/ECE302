@@ -1474,4 +1474,281 @@ Levels = `ceil((Virtual bits - Offset bits) / Index bits per level)`
   - **Multi-level tables** (space-efficient for sparse memory)
   - **TLB-backed** (Translation Lookaside Buffer) to speed up access
 
+---
 
+# Lecture 16: Threads
+
+## Concurrency vs Parallelism
+
+These terms are synonyms in English, but **not in computer science**.
+
+### Concurrency
+- Switching between two or more tasks.
+- Tasks **make progress** but **not necessarily simultaneously**.
+- Example: You work on task A, get interrupted, work on task B, and switch back and forth.
+
+### Parallelism
+- Running two or more tasks **at the exact same time**.
+- Requires independent execution units (e.g., multiple CPUs).
+
+### Key Difference
+- **Concurrency** = Making progress on multiple things.
+- **Parallelism** = Doing multiple things *at the same instant*.
+
+If concurrency happens **fast enough**, it can appear like parallelism.
+
+## Real-Life Example: Dinner Table Scenario
+
+Imagine sitting at a dinner table. You can:
+- Eat 🍽️
+- Drink 🥤
+- Talk 💬
+- Gesture 🤌
+
+Assume:
+- You’re polite (not a “savage”).
+- You have one mouth.
+- Once you start eating, you **don’t stop** until you finish.
+
+Let’s check combinations:
+
+| Tasks | Parallel? | Concurrent? | Reason |
+|-------|------------|-------------|--------|
+| Talk & Drink | ❌ | ✅ | One mouth; can alternate |
+| Eat & Drink | ❌ | ❌ | You eat continuously |
+| Eat & Gesture | ✅ | ❌ | One task uses hands, other uses mouth |
+| Gesture & Drink | ✅ | ✅ | Independent body parts |
+
+So, concurrency ≠ parallelism.  
+If you alternate *very* fast, it might *look* parallel.
+
+## Threads: The Basics
+
+Threads are like **lightweight processes** that **share memory**.
+
+### Comparison to Processes
+- Each thread has its own:
+  - **Registers**
+  - **Program counter**
+  - **Stack**
+- Threads within a process share:
+  - **Heap memory**
+  - **Global variables**
+  - **File descriptors**
+  - **Code and data segments**
+
+### Why Use Threads?
+- Faster and **less expensive to create** than processes.
+- Ideal for **concurrent tasks** like handling multiple web requests.
+- A single CPU can switch threads quickly, giving the illusion of parallelism.
+
+## Memory and Address Space
+
+All threads in a process share the **same address space**.
+
+- **Stack** → Local to each thread.
+- **Heap & Global variables** → Shared between threads.
+
+Therefore:
+- Stack variables are **thread-safe**.
+- Heap/global variables may **change unexpectedly** due to other threads.
+
+## Threads vs Processes Summary
+
+| Property | Process | Thread |
+|-----------|----------|--------|
+| Address Space | Independent | Shared |
+| Heap/Data | Separate | Shared |
+| Stack | Own | Own |
+| Registers | Own | Own |
+| Creation Cost | High | Low |
+| Context Switch | Expensive | Fast |
+| Exit Cleanup | Removes all | Removes only its stack |
+| Relationship | Independent | Within a process |
+
+If a **process dies**, all its **threads** die as well.
+
+## POSIX Threads (pthreads)
+
+We use **POSIX Threads (pthreads)** on Unix, macOS, and Linux.
+
+Include the header:
+```c
+#include <pthread.h>
+```
+
+Compile with 
+```
+gcc file.c -pthread
+```
+
+# Creating a Thread
+
+Equivalent of `fork()` for threads:
+
+```c
+pthread_create(pthread_t *thread, 
+               const pthread_attr_t *attr,
+               void *(*start_routine)(void *),
+               void *arg);
+```
+## Parameters
+
+- **thread** — Pointer to a thread ID (similar to a process ID).  
+- **attr** — Thread attributes (can be `NULL`).  
+- **start_routine** — Function the thread will run.  
+- **arg** — Argument passed to the function.
+
+### Return Value
+
+- `0` → Success  
+- Error number → Failure  
+
+## Example: Creating a Thread
+
+```c
+#include <pthread.h>
+#include <stdio.h>
+
+void *run(void *arg) {
+    printf("In run\n");
+    return NULL;
+}
+
+int main() {
+    pthread_t thread;
+    pthread_create(&thread, NULL, run, NULL);
+    printf("In main\n");
+    return 0;
+}
+```
+
+### Expected Output
+```
+In main
+In run
+```
+
+### Problem: Missing Output
+
+In practice, you might only see:
+```
+In main
+```
+
+### Why?
+
+Because `main()` returned before the thread printed `"In run"`.  
+When the **main thread exits**, the **entire process terminates**, killing all threads.
+
+
+## Fixing It: `pthread_join`
+
+We can wait for the thread to finish using **join**:
+
+```c
+pthread_join(pthread_t thread, void **retval);
+```
+
+- Equivalent to wait() for processes.
+- Blocks until the thread terminates.
+- retval stores the thread’s return value (or can be NULL).
+
+### Example 
+
+```c
+#include <pthread.h>
+#include <stdio.h>
+
+void *run(void *arg) {
+    printf("In run\n");
+    return NULL;
+}
+
+int main() {
+    pthread_t thread;
+    pthread_create(&thread, NULL, run, NULL);
+    pthread_join(thread, NULL);
+    printf("In main\n");
+    return 0;
+}
+```
+
+### Output
+```
+In main
+In run
+```
+
+> **Note:**  
+> The order may vary due to thread scheduling.
+
+## Thread Exit
+
+To end a thread early:
+```c
+pthread_exit(void *retval);
+```
+- Works like `exit()` for processes.
+- The value passed to `pthread_exit()` becomes available to another thread via `pthread_join()`.
+- Returning from the thread’s start function is equivalent to:
+  ```c
+  pthread_exit(NULL);
+  ```
+
+
+# Detached Threads
+
+When you create a thread with `pthread_create()`:
+
+## Joinable vs Detached
+
+1. **Joinable threads** (default)  
+   - The thread keeps some internal memory (its “thread control block”) even after it finishes.  
+   - You **must** call `pthread_join()` to clean up that memory and optionally get the thread’s return value.  
+   - If you don’t call `pthread_join()`, the memory stays allocated → **memory leak**.
+
+2. **Detached threads**  
+   - They clean up their own resources automatically after finishing.  
+   - You **cannot** call `pthread_join()` on them.  
+   - Useful when you don’t care about the thread’s return value and want it to run independently.
+
+## 2. Analogy
+
+Think of threads like guests at a party:
+
+| Type      | What you do after the guest leaves | Memory/resources |
+|-----------|----------------------------------|----------------|
+| Joinable  | You check in and see how they did | You clean up after them |
+| Detached  | You don’t care, they leave quietly | They clean up themselves |
+
+## Example
+
+```c
+#include <pthread.h>
+#include <stdio.h>
+
+void* run(void* arg) {
+    printf("Thread running!\n");
+    return NULL;
+}
+
+int main() {
+    pthread_t thread;
+    // Create a detached thread
+    pthread_create(&thread, NULL, run, NULL);
+    pthread_detach(thread); // make it detached
+
+    printf("Main finished!\n");
+    return 0;
+}
+```
+
+### Output (order may vary):
+
+```
+Main finished!
+Thread running!
+```
+- The thread runs in the background.
+- You don’t join it; it cleans itself up.

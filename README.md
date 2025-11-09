@@ -19,7 +19,7 @@
 - [Lecture 12: Page Tables](#lecture-12-page-tables)
 - [Lecture 13: Page Table Implementation](#lecture-13-page-table-implementation)
 
-**Midterm Break**
+### Midterm Break
 
 **Threads**
 - [Lecture 16: Threads](#lecture-16-threads)

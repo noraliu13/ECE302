@@ -1,3 +1,19 @@
+# Table of Contents
+- [Kernels](#lecture-1-operating-systems)
+- [Processes](#lecture-4-process-creation)
+- [Scheduling](#lecture-9-basic-scheduling)
+- [Threads](#lecture-16-threads)
+
+# Introduction
+This is the intro section.
+
+# Race Conditions
+Explanation of race conditions here.
+
+# Fixing Race Conditions
+Ways to fix race conditions.
+
+
 # Lecture 1: Operating Systems
 
 ## 📌 Core OS Themes  
